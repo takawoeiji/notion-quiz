@@ -3,7 +3,20 @@
 import { useState, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import rehypeRaw from "rehype-raw";
+import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import type { QuizQuestion, Understanding } from "@/types";
+
+// Notionが出力するHTML属性（header-row等）を許可しつつ基本的なサニタイズを維持
+const sanitizeSchema = {
+  ...defaultSchema,
+  attributes: {
+    ...defaultSchema.attributes,
+    table: [...(defaultSchema.attributes?.table ?? []), "headerRow", "header-row"],
+    td: [...(defaultSchema.attributes?.td ?? []), "colSpan", "rowSpan", "colspan", "rowspan"],
+    th: [...(defaultSchema.attributes?.th ?? []), "colSpan", "rowSpan", "colspan", "rowspan"],
+  },
+};
 
 const SUBJECT_COLORS: Record<string, string> = {
   労働基準法: "bg-red-100 text-red-700 border-red-200",
@@ -274,8 +287,14 @@ export function FlashCard({ question, index, total, onNext, onPrev, onUpdateUnde
                       prose-ul:my-1 prose-li:my-0.5
                       prose-strong:text-gray-800
                       prose-code:bg-gray-200 prose-code:px-1 prose-code:rounded prose-code:text-xs
-                      prose-blockquote:border-indigo-300 prose-blockquote:text-gray-600">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      prose-blockquote:border-indigo-300 prose-blockquote:text-gray-600
+                      prose-table:w-full prose-table:text-xs
+                      prose-th:bg-gray-200 prose-th:px-3 prose-th:py-2 prose-th:text-left prose-th:font-semibold
+                      prose-td:px-3 prose-td:py-2 prose-td:border prose-td:border-gray-300">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        rehypePlugins={[rehypeRaw, [rehypeSanitize, sanitizeSchema]]}
+                      >
                         {pageContent}
                       </ReactMarkdown>
                     </div>
