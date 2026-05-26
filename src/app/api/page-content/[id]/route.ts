@@ -10,8 +10,16 @@ export async function GET(
   try {
     const { id } = await params;
     const response = await notion.pages.retrieveMarkdown({ page_id: id });
+
+    // Notionが \*\* のようにエスケープした記法を元の ** に戻して太字などを正しく表示する
+    const markdown = response.markdown
+      .replace(/\\\*/g, "*")   // \* → *  （太字・斜体）
+      .replace(/\\_/g, "_")    // \_ → _  （斜体）
+      .replace(/\\~/g, "~")    // \~ → ~  （取り消し線）
+      .replace(/\\`/g, "`");   // \` → `  （コード）
+
     return NextResponse.json({
-      markdown: response.markdown,
+      markdown,
       truncated: response.truncated,
     });
   } catch (error) {
