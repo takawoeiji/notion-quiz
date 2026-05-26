@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import type { QuizQuestion, Understanding } from "@/types";
 
 const SUBJECT_COLORS: Record<string, string> = {
@@ -56,6 +58,9 @@ export function FlashCard({ question, index, total, onNext, onPrev, onUpdateUnde
   const [revealed, setRevealed] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [savedUnderstanding, setSavedUnderstanding] = useState<Understanding | null>(null);
+  const [pageContent, setPageContent] = useState<string | null>(null);
+  const [pageContentOpen, setPageContentOpen] = useState(false);
+  const [pageContentLoading, setPageContentLoading] = useState(false);
 
   const handleReveal = () => setRevealed(true);
 
@@ -69,15 +74,38 @@ export function FlashCard({ question, index, total, onNext, onPrev, onUpdateUnde
     }
   };
 
+  const handleTogglePageContent = useCallback(async () => {
+    if (pageContentOpen) {
+      setPageContentOpen(false);
+      return;
+    }
+    setPageContentOpen(true);
+    if (pageContent !== null) return; // already fetched
+    setPageContentLoading(true);
+    try {
+      const res = await fetch(`/api/page-content/${question.id}`);
+      const data = await res.json();
+      setPageContent(data.markdown ?? "（本文なし）");
+    } catch {
+      setPageContent("（取得に失敗しました）");
+    } finally {
+      setPageContentLoading(false);
+    }
+  }, [question.id, pageContent, pageContentOpen]);
+
   const handleNext = () => {
     setRevealed(false);
     setSavedUnderstanding(null);
+    setPageContent(null);
+    setPageContentOpen(false);
     onNext();
   };
 
   const handlePrev = () => {
     setRevealed(false);
     setSavedUnderstanding(null);
+    setPageContent(null);
+    setPageContentOpen(false);
     onPrev();
   };
 
@@ -217,6 +245,41 @@ export function FlashCard({ question, index, total, onNext, onPrev, onUpdateUnde
                       {opt.label}
                     </button>
                   ))}
+                </div>
+              )}
+            </div>
+
+            {/* Page body content toggle */}
+            <div className="border-t border-gray-100 pt-4">
+              <button
+                onClick={handleTogglePageContent}
+                className="flex items-center gap-2 text-sm font-medium text-indigo-600 hover:text-indigo-800 transition-colors"
+              >
+                <span className={`transition-transform duration-200 ${pageContentOpen ? "rotate-90" : ""}`}>▶</span>
+                {pageContentOpen ? "Notionページ本文を閉じる" : "Notionページ本文を見る"}
+              </button>
+
+              {pageContentOpen && (
+                <div className="mt-3 bg-gray-50 rounded-xl p-4 text-sm text-gray-700">
+                  {pageContentLoading ? (
+                    <div className="flex items-center gap-2 text-gray-400">
+                      <div className="w-4 h-4 border-2 border-gray-300 border-t-indigo-500 rounded-full animate-spin" />
+                      読み込み中...
+                    </div>
+                  ) : pageContent ? (
+                    <div className="prose prose-sm prose-gray max-w-none
+                      prose-headings:font-bold prose-headings:text-gray-800
+                      prose-h1:text-base prose-h2:text-sm prose-h3:text-sm
+                      prose-p:leading-relaxed prose-p:text-gray-700
+                      prose-ul:my-1 prose-li:my-0.5
+                      prose-strong:text-gray-800
+                      prose-code:bg-gray-200 prose-code:px-1 prose-code:rounded prose-code:text-xs
+                      prose-blockquote:border-indigo-300 prose-blockquote:text-gray-600">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {pageContent}
+                      </ReactMarkdown>
+                    </div>
+                  ) : null}
                 </div>
               )}
             </div>
