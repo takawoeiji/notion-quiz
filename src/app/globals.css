@@ -26,6 +26,23 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+/* Notionページ本文の見出しスタイル */
+.notion-content h1 { font-size: 1.1rem; font-weight: 700; margin: 1rem 0 0.5rem; color: #1f2937; }
+.notion-content h2 { font-size: 1rem;   font-weight: 700; margin: 0.9rem 0 0.4rem; color: #1f2937; }
+.notion-content h3 { font-size: 0.9rem; font-weight: 700; margin: 0.75rem 0 0.35rem; color: #374151; }
+.notion-content h4 { font-size: 0.85rem; font-weight: 600; margin: 0.6rem 0 0.3rem; color: #374151; }
+.notion-content p  { margin: 0.4rem 0; line-height: 1.65; }
+.notion-content ul { margin: 0.3rem 0 0.3rem 1.2rem; }
+.notion-content li { margin: 0.2rem 0; line-height: 1.6; }
+.notion-content blockquote {
+  border-left: 3px solid #a5b4fc;
+  margin: 0.75rem 0;
+  padding: 0.4rem 0.75rem;
+  background: #f5f3ff;
+  border-radius: 0 0.5rem 0.5rem 0;
+  color: #4b5563;
+}
+
 /* Notionページ本文の表スタイル */
 .notion-table {
   width: 100%;

@@ -282,17 +282,7 @@ export function FlashCard({ question, index, total, onNext, onPrev, onUpdateUnde
                       読み込み中...
                     </div>
                   ) : pageContent ? (
-                    <div className="prose prose-sm prose-gray max-w-none
-                      prose-headings:font-bold prose-headings:text-gray-800
-                      prose-h1:text-base prose-h2:text-sm prose-h3:text-sm
-                      prose-p:leading-relaxed prose-p:text-gray-700
-                      prose-ul:my-1 prose-li:my-0.5
-                      prose-strong:text-gray-800
-                      prose-code:bg-gray-200 prose-code:px-1 prose-code:rounded prose-code:text-xs
-                      prose-blockquote:border-indigo-300 prose-blockquote:text-gray-600
-                      prose-table:w-full prose-table:text-xs
-                      prose-th:bg-gray-200 prose-th:px-3 prose-th:py-2 prose-th:text-left prose-th:font-semibold
-                      prose-td:px-3 prose-td:py-2 prose-td:border prose-td:border-gray-300">
+                    <div className="notion-content text-sm text-gray-700 leading-relaxed">
                       <ReactMarkdown
                         remarkPlugins={[remarkGfm]}
                         rehypePlugins={[rehypeRaw, [rehypeSanitize, sanitizeSchema]]}
