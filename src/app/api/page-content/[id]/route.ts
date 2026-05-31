@@ -25,16 +25,16 @@ export async function GET(
       .replace(/\*\s*([^*\n]+?)\s*\*/g,   "<em>$1</em>")
       .replace(/~~([^~]+?)~~/g,            "<del>$1</del>");
 
-    // Step 3: 見出し記号 (#, ##, ###, ####) をHTMLタグに変換
-    // react-markdownはHTMLと混在するとATX見出しを認識できないため
-    // `m` フラグで各行の先頭にマッチ
+    // Step 3: 見出し記号 (#, ##, ###, ####) をHTMLタグに変換し、前後に空行を確保
+    // ポイント: 前後の \n と合わせて \n\n（空行）になるよう \n を付加する
+    // 空行がないと後続のリスト・段落がHTMLブロックに飲み込まれてしまう
     markdown = markdown
-      .replace(/^#### (.+)$/gm, "<h4>$1</h4>")
-      .replace(/^### (.+)$/gm,  "<h3>$1</h3>")
-      .replace(/^## (.+)$/gm,   "<h2>$1</h2>")
-      .replace(/^# (.+)$/gm,    "<h1>$1</h1>");
+      .replace(/^#### (.+)$/gm, "\n<h4>$1</h4>\n")
+      .replace(/^### (.+)$/gm,  "\n<h3>$1</h3>\n")
+      .replace(/^## (.+)$/gm,   "\n<h2>$1</h2>\n")
+      .replace(/^# (.+)$/gm,    "\n<h1>$1</h1>\n");
 
-    // Step 4: <br> の直後に改行がない場合は補完（段落の流れを維持するため）
+    // Step 4: <br> の直後に改行がない場合は補完
     markdown = markdown.replace(/<br>(?!\n)/g, "<br>\n");
 
     // Step 5: Notionの <table header-row="true"> を標準HTMLテーブルに変換
