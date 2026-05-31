@@ -12,11 +12,34 @@ export async function GET(
     const response = await notion.pages.retrieveMarkdown({ page_id: id });
 
     // Notionが \*\* のようにエスケープした記法を元の ** に戻して太字などを正しく表示する
-    const markdown = response.markdown
-      .replace(/\\\*/g, "*")   // \* → *  （太字・斜体）
-      .replace(/\\_/g, "_")    // \_ → _  （斜体）
-      .replace(/\\~/g, "~")    // \~ → ~  （取り消し線）
-      .replace(/\\`/g, "`");   // \` → `  （コード）
+    let markdown = response.markdown
+      .replace(/\\\*/g, "*")
+      .replace(/\\_/g, "_")
+      .replace(/\\~/g, "~")
+      .replace(/\\`/g, "`");
+
+    // Notionの <table header-row="true"> を標準的な <thead>/<tbody>/<th> 構造に変換する
+    markdown = markdown.replace(
+      /<table[^>]*header-row="true"[^>]*>([\s\S]*?)<\/table>/g,
+      (_match, body: string) => {
+        // <tr>...</tr> ブロックを分割
+        const rows = [...body.matchAll(/<tr>([\s\S]*?)<\/tr>/g)];
+        if (rows.length === 0) return _match;
+
+        // 1行目をヘッダー（<th>）、残りをボディ（<td>）として組み立て
+        const headerCells = rows[0][1]
+          .replace(/<td>/g, "<th>")
+          .replace(/<\/td>/g, "</th>");
+        const thead = `<thead><tr>${headerCells}</tr></thead>`;
+
+        const tbody = rows
+          .slice(1)
+          .map((r) => `<tr>${r[1]}</tr>`)
+          .join("");
+
+        return `<table class="notion-table">${thead}<tbody>${tbody}</tbody></table>`;
+      }
+    );
 
     return NextResponse.json({
       markdown,

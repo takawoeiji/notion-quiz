@@ -7,11 +7,13 @@ import rehypeRaw from "rehype-raw";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import type { QuizQuestion, Understanding } from "@/types";
 
-// Notionが出力するHTML属性（header-row等）を許可しつつ基本的なサニタイズを維持
+// Notionが出力するHTMLを適切にレンダリングしつつサニタイズを維持
 const sanitizeSchema = {
   ...defaultSchema,
   attributes: {
     ...defaultSchema.attributes,
+    // class属性を全タグで許可（notion-tableなどのCSSクラス用）
+    "*": [...(defaultSchema.attributes?.["*"] ?? []), "className", "class"],
     table: [...(defaultSchema.attributes?.table ?? []), "headerRow", "header-row"],
     td: [...(defaultSchema.attributes?.td ?? []), "colSpan", "rowSpan", "colspan", "rowspan"],
     th: [...(defaultSchema.attributes?.th ?? []), "colSpan", "rowSpan", "colspan", "rowspan"],

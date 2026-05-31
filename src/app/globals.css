@@ -25,3 +25,27 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Notionページ本文の表スタイル */
+.notion-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  margin: 0.75rem 0;
+}
+.notion-table th,
+.notion-table td {
+  border: 1px solid #d1d5db;
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  vertical-align: top;
+  line-height: 1.5;
+}
+.notion-table th {
+  background-color: #e5e7eb;
+  font-weight: 600;
+  color: #374151;
+}
+.notion-table tr:nth-child(even) td {
+  background-color: #f9fafb;
+}
