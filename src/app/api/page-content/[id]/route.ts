@@ -12,13 +12,19 @@ export async function GET(
     const response = await notion.pages.retrieveMarkdown({ page_id: id });
 
     // Step 0: Notionブロック間の段落区切りを正規化
-    // コードブロックは保護し、隣接するリスト/引用行同士には空行を挿入しない
+    // コードブロックは保護し、同じ種類の連続行（引用→引用、リスト→リスト）は
+    // 空行を挿入しない。ただし引用→リストなど異種ブロックの間には必ず空行を入れる。
+    // （空行がないと CommonMark の lazy continuation で後続ブロックが引用に取り込まれる）
     const codeBlocks: string[] = [];
     const withoutCode = response.markdown.replace(/```[\s\S]*?```/g, (m) => {
       codeBlocks.push(m);
       return `\x00CB${codeBlocks.length - 1}\x00`;
     });
-    const isListLike = (s: string) => /^([-*+]|>)\s|\d+\.\s/.test(s.trim());
+    const isQuoteLine = (s: string) => /^>/.test(s.trim());
+    const isListLine  = (s: string) => /^[-*+]|\d+\./.test(s.trim()) && !isQuoteLine(s);
+    const sameBlockType = (a: string, b: string) =>
+      (isQuoteLine(a) && isQuoteLine(b)) || (isListLine(a) && isListLine(b));
+
     const rawLines = withoutCode.split("\n");
     const spacedLines: string[] = [];
     for (let i = 0; i < rawLines.length; i++) {
@@ -26,8 +32,8 @@ export async function GET(
       if (i < rawLines.length - 1) {
         const curr = rawLines[i].trim();
         const next = rawLines[i + 1].trim();
-        // 両方が非空行かつ「両方ともリスト/引用行」でなければ空行を挿入
-        if (curr && next && !(isListLike(curr) && isListLike(next))) {
+        // 両方非空行かつ「同種の連続ブロック行」でなければ空行を挿入
+        if (curr && next && !sameBlockType(curr, next)) {
           spacedLines.push("");
         }
       }
