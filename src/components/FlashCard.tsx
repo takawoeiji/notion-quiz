@@ -57,7 +57,7 @@ const UNDERSTANDING_BUTTON_COLORS = [
 
 const FALLBACK_UNDERSTANDING_OPTIONS = [
   "要復習",
-  "不明点あり",
+  "要暗記",
   "部分的に理解",
   "まあまあ理解",
   "完全に理解",

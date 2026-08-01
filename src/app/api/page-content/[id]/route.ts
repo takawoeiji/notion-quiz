@@ -11,15 +11,30 @@ export async function GET(
     const { id } = await params;
     const response = await notion.pages.retrieveMarkdown({ page_id: id });
 
-    // Step 0: Notionブロック間の単一改行を空行（段落区切り）に変換
-    // コードブロック内は保護して処理する
+    // Step 0: Notionブロック間の段落区切りを正規化
+    // コードブロックは保護し、隣接するリスト/引用行同士には空行を挿入しない
     const codeBlocks: string[] = [];
-    let markdown = response.markdown.replace(/```[\s\S]*?```/g, (m) => {
+    const withoutCode = response.markdown.replace(/```[\s\S]*?```/g, (m) => {
       codeBlocks.push(m);
       return `\x00CB${codeBlocks.length - 1}\x00`;
     });
-    markdown = markdown.replace(/([^\n])\n(?!\n)/g, "$1\n\n");
-    markdown = markdown.replace(/\x00CB(\d+)\x00/g, (_, i) => codeBlocks[Number(i)]);
+    const isListLike = (s: string) => /^([-*+]|>)\s|\d+\.\s/.test(s.trim());
+    const rawLines = withoutCode.split("\n");
+    const spacedLines: string[] = [];
+    for (let i = 0; i < rawLines.length; i++) {
+      spacedLines.push(rawLines[i]);
+      if (i < rawLines.length - 1) {
+        const curr = rawLines[i].trim();
+        const next = rawLines[i + 1].trim();
+        // 両方が非空行かつ「両方ともリスト/引用行」でなければ空行を挿入
+        if (curr && next && !(isListLike(curr) && isListLike(next))) {
+          spacedLines.push("");
+        }
+      }
+    }
+    let markdown = spacedLines
+      .join("\n")
+      .replace(/\x00CB(\d+)\x00/g, (_, i) => codeBlocks[Number(i)]);
 
     // Step 1: Notionのエスケープを元に戻す
     markdown = markdown

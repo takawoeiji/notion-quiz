@@ -46,6 +46,21 @@ export default function Home() {
       .finally(() => setLoading(false));
   }, []);
 
+  // 科目・理解度をquestionデータから導出（スキーマAPIが失敗しても確実に動作）
+  const effectiveSubjects = useMemo(() => {
+    if (schema.subjects.length > 0) return schema.subjects;
+    const set = new Set<string>();
+    questions.forEach((q) => { if (q.subject) set.add(q.subject); });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "ja"));
+  }, [schema.subjects, questions]);
+
+  const effectiveUnderstandings = useMemo(() => {
+    if (schema.understandings.length > 0) return schema.understandings;
+    const set = new Set<string>();
+    questions.forEach((q) => { if (q.understanding) set.add(q.understanding as string); });
+    return Array.from(set);
+  }, [schema.understandings, questions]);
+
   const filtered = useMemo(() => {
     return questions.filter((q) => {
       if (filters.subject !== "全て" && q.subject !== filters.subject) return false;
@@ -177,8 +192,8 @@ export default function Home() {
           onChange={handleFilterChange}
           total={questions.length}
           filtered={filtered.length}
-          subjects={schema.subjects}
-          understandings={schema.understandings}
+          subjects={effectiveSubjects}
+          understandings={effectiveUnderstandings}
         />
 
         {/* Quiz */}
@@ -195,7 +210,7 @@ export default function Home() {
             onNext={() => setCurrentIndex((i) => Math.min(i + 1, orderedFiltered.length - 1))}
             onPrev={() => setCurrentIndex((i) => Math.max(i - 1, 0))}
             onUpdateUnderstanding={handleUpdateUnderstanding}
-            understandingOptions={schema.understandings}
+            understandingOptions={effectiveUnderstandings}
           />
         ) : null}
       </div>

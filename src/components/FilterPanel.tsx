@@ -7,7 +7,7 @@ const IMPORTANCES: Array<Importance | "全て"> = ["全て", "高", "中", "低"
 const UNDERSTANDINGS_DEFAULT = [
   "全て",
   "要復習",
-  "不明点あり",
+  "要暗記",
   "部分的に理解",
   "まあまあ理解",
   "完全に理解",
@@ -32,7 +32,7 @@ const UNDERSTANDING_COLORS: Record<string, string> = {
   まあまあ理解: "bg-blue-100 text-blue-700",
   部分的に理解: "bg-yellow-100 text-yellow-700",
   不明点あり: "bg-orange-100 text-orange-700",
-  要暗記: "bg-orange-100 text-orange-700",
+  要暗記: "bg-purple-100 text-purple-700",
   要復習: "bg-red-100 text-red-700",
 };
 
