@@ -331,6 +331,7 @@ export function FlashCard({
                       <ReactMarkdown
                         remarkPlugins={[remarkGfm]}
                         rehypePlugins={[rehypeRaw, [rehypeSanitize, sanitizeSchema]]}
+                        remarkRehypeOptions={{ allowDangerousHtml: true }}
                       >
                         {pageContent}
                       </ReactMarkdown>
