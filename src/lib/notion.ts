@@ -1,5 +1,5 @@
 import { Client } from "@notionhq/client";
-import type { QuizQuestion, Understanding } from "@/types";
+import type { QuizQuestion, Understanding, SchemaOptions } from "@/types";
 
 const notion = new Client({ auth: process.env.NOTION_TOKEN });
 
@@ -82,8 +82,8 @@ export async function updateUnderstanding(
   pageId: string,
   understanding: Understanding,
   currentReviewCount: number
-): Promise<void> {
-  await notion.pages.update({
+): Promise<{ verified: boolean; savedUnderstanding: string | null; savedCount: number | null }> {
+  const result = await notion.pages.update({
     page_id: pageId,
     properties: {
       理解度: {
@@ -94,4 +94,34 @@ export async function updateUnderstanding(
       },
     },
   });
+
+  const props = (result as { properties?: Record<string, AnyProp> }).properties ?? {};
+  const savedUnderstanding = extractSelect(props["理解度"]);
+  const savedCount = extractNumber(props["復習回数"]);
+  const verified = savedUnderstanding === understanding && savedCount === currentReviewCount + 1;
+
+  return { verified, savedUnderstanding, savedCount };
+}
+
+function formatDatabaseId(raw: string): string {
+  if (raw.includes("-")) return raw;
+  return raw.replace(/^(.{8})(.{4})(.{4})(.{4})(.{12})$/, "$1-$2-$3-$4-$5");
+}
+
+export async function fetchSchema(): Promise<SchemaOptions> {
+  const dbId = formatDatabaseId(process.env.NOTION_DATABASE_ID ?? "");
+  const db = await notion.databases.retrieve({ database_id: dbId });
+  const props = (db as { properties?: Record<string, Record<string, unknown>> }).properties ?? {};
+
+  const getSelectOptions = (propName: string): string[] => {
+    const prop = props[propName];
+    if (!prop || prop["type"] !== "select") return [];
+    const options = (prop["select"] as { options?: Array<{ name: string }> })?.options ?? [];
+    return options.map((o) => o.name);
+  };
+
+  return {
+    subjects: getSelectOptions("科目"),
+    understandings: getSelectOptions("理解度"),
+  };
 }

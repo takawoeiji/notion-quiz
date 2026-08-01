@@ -7,12 +7,10 @@ import rehypeRaw from "rehype-raw";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import type { QuizQuestion, Understanding } from "@/types";
 
-// Notionが出力するHTMLを適切にレンダリングしつつサニタイズを維持
 const sanitizeSchema = {
   ...defaultSchema,
   attributes: {
     ...defaultSchema.attributes,
-    // class属性を全タグで許可（notion-tableなどのCSSクラス用）
     "*": [...(defaultSchema.attributes?.["*"] ?? []), "className", "class"],
     table: [...(defaultSchema.attributes?.table ?? []), "headerRow", "header-row"],
     td: [...(defaultSchema.attributes?.td ?? []), "colSpan", "rowSpan", "colspan", "rowspan"],
@@ -48,16 +46,21 @@ const ANSWER_STYLE: Record<string, string> = {
   E: "bg-yellow-100 text-yellow-700 border-yellow-300",
 };
 
-const UNDERSTANDING_OPTIONS: Array<{
-  value: Understanding;
-  label: string;
-  color: string;
-}> = [
-  { value: "要復習", label: "要復習", color: "bg-red-500 hover:bg-red-600 text-white" },
-  { value: "不明点あり", label: "不明点あり", color: "bg-orange-400 hover:bg-orange-500 text-white" },
-  { value: "部分的に理解", label: "部分的に理解", color: "bg-yellow-400 hover:bg-yellow-500 text-white" },
-  { value: "まあまあ理解", label: "まあまあ理解", color: "bg-blue-400 hover:bg-blue-500 text-white" },
-  { value: "完全に理解", label: "完全に理解", color: "bg-green-500 hover:bg-green-600 text-white" },
+// 理解度ボタンの色（Notionの設定順に対応）
+const UNDERSTANDING_BUTTON_COLORS = [
+  "bg-red-500 hover:bg-red-600 text-white",
+  "bg-orange-400 hover:bg-orange-500 text-white",
+  "bg-yellow-400 hover:bg-yellow-500 text-white",
+  "bg-blue-400 hover:bg-blue-500 text-white",
+  "bg-green-500 hover:bg-green-600 text-white",
+];
+
+const FALLBACK_UNDERSTANDING_OPTIONS = [
+  "要復習",
+  "不明点あり",
+  "部分的に理解",
+  "まあまあ理解",
+  "完全に理解",
 ];
 
 interface Props {
@@ -66,13 +69,28 @@ interface Props {
   total: number;
   onNext: () => void;
   onPrev: () => void;
-  onUpdateUnderstanding: (id: string, understanding: Understanding, reviewCount: number) => Promise<void>;
+  onUpdateUnderstanding: (
+    id: string,
+    understanding: Understanding,
+    reviewCount: number
+  ) => Promise<{ verified: boolean; error?: string }>;
+  understandingOptions: string[];
 }
 
-export function FlashCard({ question, index, total, onNext, onPrev, onUpdateUnderstanding }: Props) {
+export function FlashCard({
+  question,
+  index,
+  total,
+  onNext,
+  onPrev,
+  onUpdateUnderstanding,
+  understandingOptions,
+}: Props) {
   const [revealed, setRevealed] = useState(false);
   const [updating, setUpdating] = useState(false);
-  const [savedUnderstanding, setSavedUnderstanding] = useState<Understanding | null>(null);
+  const [savedUnderstanding, setSavedUnderstanding] = useState<string | null>(null);
+  const [updateError, setUpdateError] = useState<string | null>(null);
+  const [verificationFailed, setVerificationFailed] = useState(false);
   const [pageContent, setPageContent] = useState<string | null>(null);
   const [pageContentOpen, setPageContentOpen] = useState(false);
   const [pageContentLoading, setPageContentLoading] = useState(false);
@@ -81,9 +99,18 @@ export function FlashCard({ question, index, total, onNext, onPrev, onUpdateUnde
 
   const handleUnderstanding = async (value: Understanding) => {
     setUpdating(true);
+    setUpdateError(null);
+    setVerificationFailed(false);
     try {
-      await onUpdateUnderstanding(question.id, value, question.reviewCount);
-      setSavedUnderstanding(value);
+      const result = await onUpdateUnderstanding(question.id, value, question.reviewCount);
+      if (result.error) {
+        setUpdateError(result.error);
+      } else {
+        setSavedUnderstanding(value);
+        if (!result.verified) {
+          setVerificationFailed(true);
+        }
+      }
     } finally {
       setUpdating(false);
     }
@@ -95,7 +122,7 @@ export function FlashCard({ question, index, total, onNext, onPrev, onUpdateUnde
       return;
     }
     setPageContentOpen(true);
-    if (pageContent !== null) return; // already fetched
+    if (pageContent !== null) return;
     setPageContentLoading(true);
     try {
       const res = await fetch(`/api/page-content/${question.id}`);
@@ -111,6 +138,8 @@ export function FlashCard({ question, index, total, onNext, onPrev, onUpdateUnde
   const handleNext = () => {
     setRevealed(false);
     setSavedUnderstanding(null);
+    setUpdateError(null);
+    setVerificationFailed(false);
     setPageContent(null);
     setPageContentOpen(false);
     onNext();
@@ -119,6 +148,8 @@ export function FlashCard({ question, index, total, onNext, onPrev, onUpdateUnde
   const handlePrev = () => {
     setRevealed(false);
     setSavedUnderstanding(null);
+    setUpdateError(null);
+    setVerificationFailed(false);
     setPageContent(null);
     setPageContentOpen(false);
     onPrev();
@@ -127,6 +158,9 @@ export function FlashCard({ question, index, total, onNext, onPrev, onUpdateUnde
   const subjectColor = question.subject
     ? SUBJECT_COLORS[question.subject] ?? "bg-gray-100 text-gray-700"
     : "bg-gray-100 text-gray-700";
+
+  const activeOptions =
+    understandingOptions.length > 0 ? understandingOptions : FALLBACK_UNDERSTANDING_OPTIONS;
 
   return (
     <div className="flex flex-col gap-4">
@@ -242,22 +276,33 @@ export function FlashCard({ question, index, total, onNext, onPrev, onUpdateUnde
             {/* Understanding rating */}
             <div>
               <p className="text-xs font-semibold text-gray-400 uppercase mb-2">
-                理解度を記録{savedUnderstanding && " ✓"}
+                理解度を記録{savedUnderstanding && !updateError && " ✓"}
               </p>
-              {savedUnderstanding ? (
-                <div className="text-sm text-green-600 font-medium">
+              {updateError ? (
+                <div className="text-sm text-red-600 font-medium bg-red-50 rounded-lg px-3 py-2">
+                  記録に失敗しました: {updateError}
+                </div>
+              ) : savedUnderstanding ? (
+                <div className={`text-sm font-medium ${verificationFailed ? "text-orange-600" : "text-green-600"}`}>
                   「{savedUnderstanding}」を記録しました
+                  {verificationFailed && (
+                    <span className="ml-2 text-xs text-orange-500">
+                      ※ Notionで確認できませんでした。再度お試しください。
+                    </span>
+                  )}
                 </div>
               ) : (
                 <div className="flex flex-wrap gap-2">
-                  {UNDERSTANDING_OPTIONS.map((opt) => (
+                  {activeOptions.map((opt, i) => (
                     <button
-                      key={opt.value}
-                      onClick={() => handleUnderstanding(opt.value)}
+                      key={opt}
+                      onClick={() => handleUnderstanding(opt)}
                       disabled={updating}
-                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 ${opt.color}`}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 ${
+                        UNDERSTANDING_BUTTON_COLORS[i % UNDERSTANDING_BUTTON_COLORS.length]
+                      }`}
                     >
-                      {opt.label}
+                      {opt}
                     </button>
                   ))}
                 </div>

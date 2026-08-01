@@ -1,23 +1,10 @@
 "use client";
 
-import type { Filters, Subject, Importance, Understanding } from "@/types";
-
-const SUBJECTS: Array<Subject | "全て"> = [
-  "全て",
-  "労働基準法",
-  "労働安全衛生法",
-  "労働者災害補償保険法",
-  "雇用保険法",
-  "労働保険徴収法",
-  "健康保険法",
-  "国民年金法",
-  "厚生年金保険法",
-  "一般常識",
-];
+import type { Filters, Importance } from "@/types";
 
 const IMPORTANCES: Array<Importance | "全て"> = ["全て", "高", "中", "低"];
 
-const UNDERSTANDINGS: Array<Understanding | "全て"> = [
+const UNDERSTANDINGS_DEFAULT = [
   "全て",
   "要復習",
   "不明点あり",
@@ -45,17 +32,40 @@ const UNDERSTANDING_COLORS: Record<string, string> = {
   まあまあ理解: "bg-blue-100 text-blue-700",
   部分的に理解: "bg-yellow-100 text-yellow-700",
   不明点あり: "bg-orange-100 text-orange-700",
+  要暗記: "bg-orange-100 text-orange-700",
   要復習: "bg-red-100 text-red-700",
 };
+
+const SUBJECT_COLOR_FALLBACKS = [
+  "bg-indigo-100 text-indigo-700",
+  "bg-cyan-100 text-cyan-700",
+  "bg-lime-100 text-lime-700",
+  "bg-rose-100 text-rose-700",
+  "bg-violet-100 text-violet-700",
+];
 
 interface Props {
   filters: Filters;
   onChange: (filters: Filters) => void;
   total: number;
   filtered: number;
+  subjects: string[];
+  understandings: string[];
 }
 
-export function FilterPanel({ filters, onChange, total, filtered }: Props) {
+export function FilterPanel({ filters, onChange, total, filtered, subjects, understandings }: Props) {
+  const subjectList: string[] = ["全て", ...subjects];
+  const understandingList: string[] = [
+    "全て",
+    ...(understandings.length > 0 ? understandings : UNDERSTANDINGS_DEFAULT.filter((u) => u !== "全て")),
+  ];
+
+  const getSubjectColor = (s: string, idx: number) =>
+    SUBJECT_COLORS[s] ?? SUBJECT_COLOR_FALLBACKS[idx % SUBJECT_COLOR_FALLBACKS.length];
+
+  const getUnderstandingColor = (u: string) =>
+    UNDERSTANDING_COLORS[u] ?? "bg-gray-100 text-gray-700";
+
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 space-y-4">
       <div className="flex items-center justify-between">
@@ -68,13 +78,13 @@ export function FilterPanel({ filters, onChange, total, filtered }: Props) {
       <div>
         <p className="text-xs font-medium text-gray-500 mb-2">科目</p>
         <div className="flex flex-wrap gap-1.5">
-          {SUBJECTS.map((s) => (
+          {subjectList.map((s, idx) => (
             <button
               key={s}
               onClick={() => onChange({ ...filters, subject: s })}
               className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
                 filters.subject === s
-                  ? `${SUBJECT_COLORS[s]} ring-2 ring-offset-1 ring-current`
+                  ? `${getSubjectColor(s, idx - 1)} ring-2 ring-offset-1 ring-current`
                   : "bg-gray-100 text-gray-500 hover:bg-gray-200"
               }`}
             >
@@ -112,13 +122,13 @@ export function FilterPanel({ filters, onChange, total, filtered }: Props) {
       <div>
         <p className="text-xs font-medium text-gray-500 mb-2">理解度</p>
         <div className="flex flex-wrap gap-1.5">
-          {UNDERSTANDINGS.map((u) => (
+          {understandingList.map((u) => (
             <button
               key={u}
               onClick={() => onChange({ ...filters, understanding: u })}
               className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
                 filters.understanding === u
-                  ? `${UNDERSTANDING_COLORS[u]} ring-2 ring-offset-1 ring-current`
+                  ? `${getUnderstandingColor(u)} ring-2 ring-offset-1 ring-current`
                   : "bg-gray-100 text-gray-500 hover:bg-gray-200"
               }`}
             >

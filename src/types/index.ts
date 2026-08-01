@@ -1,22 +1,8 @@
-export type Subject =
-  | "労働基準法"
-  | "労働安全衛生法"
-  | "労働者災害補償保険法"
-  | "雇用保険法"
-  | "労働保険徴収法"
-  | "健康保険法"
-  | "国民年金法"
-  | "厚生年金保険法"
-  | "一般常識";
+export type Subject = string;
 
 export type Importance = "高" | "中" | "低";
 
-export type Understanding =
-  | "完全に理解"
-  | "まあまあ理解"
-  | "部分的に理解"
-  | "不明点あり"
-  | "要復習";
+export type Understanding = string;
 
 export type Answer = "〇" | "✕" | "A" | "B" | "C" | "D" | "E";
 
@@ -37,7 +23,12 @@ export interface QuizQuestion {
 }
 
 export interface Filters {
-  subject: Subject | "全て";
+  subject: string;
   importance: Importance | "全て";
-  understanding: Understanding | "全て";
+  understanding: string;
+}
+
+export interface SchemaOptions {
+  subjects: string[];
+  understandings: string[];
 }

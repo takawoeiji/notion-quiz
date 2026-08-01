@@ -11,8 +11,18 @@ export async function GET(
     const { id } = await params;
     const response = await notion.pages.retrieveMarkdown({ page_id: id });
 
+    // Step 0: Notionブロック間の単一改行を空行（段落区切り）に変換
+    // コードブロック内は保護して処理する
+    const codeBlocks: string[] = [];
+    let markdown = response.markdown.replace(/```[\s\S]*?```/g, (m) => {
+      codeBlocks.push(m);
+      return `\x00CB${codeBlocks.length - 1}\x00`;
+    });
+    markdown = markdown.replace(/([^\n])\n(?!\n)/g, "$1\n\n");
+    markdown = markdown.replace(/\x00CB(\d+)\x00/g, (_, i) => codeBlocks[Number(i)]);
+
     // Step 1: Notionのエスケープを元に戻す
-    let markdown = response.markdown
+    markdown = markdown
       .replace(/\\\*/g, "*")
       .replace(/\\_/g, "_")
       .replace(/\\~/g, "~")

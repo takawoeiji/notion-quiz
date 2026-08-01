@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo } from "react";
-import type { QuizQuestion, Filters, Understanding } from "@/types";
+import type { QuizQuestion, Filters, Understanding, SchemaOptions } from "@/types";
 import { FilterPanel } from "@/components/FilterPanel";
 import { FlashCard } from "@/components/FlashCard";
 import { StatsBar } from "@/components/StatsBar";
@@ -12,8 +12,14 @@ const DEFAULT_FILTERS: Filters = {
   understanding: "全て",
 };
 
+const DEFAULT_SCHEMA: SchemaOptions = {
+  subjects: [],
+  understandings: [],
+};
+
 export default function Home() {
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
+  const [schema, setSchema] = useState<SchemaOptions>(DEFAULT_SCHEMA);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
@@ -22,13 +28,18 @@ export default function Home() {
   const [shuffleOrder, setShuffleOrder] = useState<number[]>([]);
 
   useEffect(() => {
-    fetch("/api/questions")
-      .then((r) => r.json())
-      .then((data) => {
-        if (Array.isArray(data)) {
-          setQuestions(data);
+    Promise.all([
+      fetch("/api/questions").then((r) => r.json()),
+      fetch("/api/schema").then((r) => r.json()),
+    ])
+      .then(([questionsData, schemaData]) => {
+        if (Array.isArray(questionsData)) {
+          setQuestions(questionsData);
         } else {
           setError("データの取得に失敗しました。APIトークンを確認してください。");
+        }
+        if (schemaData && Array.isArray(schemaData.subjects)) {
+          setSchema(schemaData as SchemaOptions);
         }
       })
       .catch(() => setError("サーバーに接続できません。"))
@@ -77,19 +88,28 @@ export default function Home() {
     id: string,
     understanding: Understanding,
     reviewCount: number
-  ) => {
-    await fetch("/api/update", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pageId: id, understanding, reviewCount }),
-    });
-    setQuestions((prev) =>
-      prev.map((q) =>
-        q.id === id
-          ? { ...q, understanding, reviewCount: reviewCount + 1 }
-          : q
-      )
-    );
+  ): Promise<{ verified: boolean; error?: string }> => {
+    try {
+      const res = await fetch("/api/update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pageId: id, understanding, reviewCount }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        return { verified: false, error: data.error ?? "更新に失敗しました" };
+      }
+      setQuestions((prev) =>
+        prev.map((q) =>
+          q.id === id
+            ? { ...q, understanding, reviewCount: reviewCount + 1 }
+            : q
+        )
+      );
+      return { verified: data.verified ?? true };
+    } catch {
+      return { verified: false, error: "ネットワークエラーが発生しました" };
+    }
   };
 
   const currentQuestion = orderedFiltered[currentIndex];
@@ -157,6 +177,8 @@ export default function Home() {
           onChange={handleFilterChange}
           total={questions.length}
           filtered={filtered.length}
+          subjects={schema.subjects}
+          understandings={schema.understandings}
         />
 
         {/* Quiz */}
@@ -173,6 +195,7 @@ export default function Home() {
             onNext={() => setCurrentIndex((i) => Math.min(i + 1, orderedFiltered.length - 1))}
             onPrev={() => setCurrentIndex((i) => Math.max(i - 1, 0))}
             onUpdateUnderstanding={handleUpdateUnderstanding}
+            understandingOptions={schema.understandings}
           />
         ) : null}
       </div>

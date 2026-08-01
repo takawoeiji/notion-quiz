@@ -8,8 +8,12 @@ export async function POST(req: NextRequest) {
     if (!pageId || !understanding) {
       return NextResponse.json({ error: "Missing fields" }, { status: 400 });
     }
-    await updateUnderstanding(pageId, understanding as Understanding, reviewCount ?? 0);
-    return NextResponse.json({ ok: true });
+    const result = await updateUnderstanding(
+      pageId,
+      understanding as Understanding,
+      reviewCount ?? 0
+    );
+    return NextResponse.json({ ok: true, ...result });
   } catch (error) {
     console.error("Notion update error:", error);
     return NextResponse.json(
