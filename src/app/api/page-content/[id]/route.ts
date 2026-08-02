@@ -49,12 +49,12 @@ export async function GET(
       .replace(/\\~/g, "~")
       .replace(/\\`/g, "`");
 
-    // Step 2: **太字** / *斜体* / ~~取り消し~~ をHTMLに変換（全体に適用）
-    // `** text **` のようにスペースがある非標準パターンも含めて対応
+    // Step 2: Notionが出力する `** text **`（スペース入り）を正規化して
+    // remark-gfm がネイティブに処理できる `**text**` 形式にするだけ。
+    // HTML変換はしない（rehype変換時にインラインHTMLが落ちるため）。
     markdown = markdown
-      .replace(/\*\*\s*([^*]+?)\s*\*\*/g, "<strong>$1</strong>")
-      .replace(/\*\s*([^*\n]+?)\s*\*/g,   "<em>$1</em>")
-      .replace(/~~([^~]+?)~~/g,            "<del>$1</del>");
+      .replace(/\*\*\s+([^*]+?)\s+\*\*/g, "**$1**");
+    // *italic* / ~~strike~~ はそのまま remark-gfm に任せる
 
     // Step 3: 見出し記号 (#, ##, ###, ####) をHTMLタグに変換し、前後に空行を確保
     // ポイント: 前後の \n と合わせて \n\n（空行）になるよう \n を付加する
