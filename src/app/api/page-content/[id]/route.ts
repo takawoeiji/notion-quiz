@@ -85,6 +85,7 @@ export async function GET(
     return NextResponse.json({
       markdown,
       truncated: response.truncated,
+      _debug_raw: response.markdown.slice(0, 800),
     });
   } catch (error) {
     console.error("Page content fetch error:", error);
