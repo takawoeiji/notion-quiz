@@ -5,7 +5,33 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
+import { visit } from "unist-util-visit";
+import type { Root, Text, Strong, RootContent } from "mdast";
 import type { QuizQuestion, Understanding } from "@/types";
+
+// CommonMark flanking ルールで ** が処理されなかった場合のフォールバック変換。
+// remark-gfm の後に実行し、テキストノード内に残った **text** を strong ノードに変換する。
+function remarkForceStrong() {
+  return (tree: Root) => {
+    const pattern = /\*\*\s*((?:[^*\n]|\*(?!\*))+?)\s*\*\*/g;
+    visit(tree, "text", (node: Text, index, parent) => {
+      if (index == null || !parent || !node.value.includes("**")) return;
+      const parts: RootContent[] = [];
+      let last = 0;
+      pattern.lastIndex = 0;
+      let m: RegExpExecArray | null;
+      while ((m = pattern.exec(node.value)) !== null) {
+        if (m.index > last) parts.push({ type: "text", value: node.value.slice(last, m.index) });
+        parts.push({ type: "strong", children: [{ type: "text", value: m[1].trim() }] } as Strong);
+        last = m.index + m[0].length;
+      }
+      if (parts.length === 0) return;
+      if (last < node.value.length) parts.push({ type: "text", value: node.value.slice(last) });
+      (parent.children as RootContent[]).splice(index, 1, ...parts);
+      return index + parts.length;
+    });
+  };
+}
 
 const sanitizeSchema = {
   ...defaultSchema,
@@ -334,9 +360,8 @@ export function FlashCard({
                       </details>
                       <div className="notion-content text-sm text-gray-700 leading-relaxed">
                         <ReactMarkdown
-                          remarkPlugins={[remarkGfm]}
+                          remarkPlugins={[remarkGfm, remarkForceStrong]}
                           rehypePlugins={[rehypeRaw, [rehypeSanitize, sanitizeSchema]]}
-                          remarkRehypeOptions={{ allowDangerousHtml: true }}
                         >
                           {pageContent}
                         </ReactMarkdown>

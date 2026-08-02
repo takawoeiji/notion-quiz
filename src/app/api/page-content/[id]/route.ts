@@ -50,24 +50,28 @@ export async function GET(
       .replace(/\\~/g, "~")
       .replace(/\\`/g, "`");
 
-    // Step 2: **太字** をHTMLに変換。
-    // remark-gfm では日本語の括弧「」や記号の前後の ** が
-    // CommonMark flanking ルールに引っかかり bold として認識されないため、
-    // 正規表現で全ケース（スペースなし/片側/両側）を変換する。
+    // Step 2: ** 前後の余分なスペースを正規化する。
+    // HTML変換はしない — FlashCard の remarkForceStrong プラグインが
+    // CommonMark flanking ルールを通過できなかった ** を直接 strong ノードに変換する。
     markdown = markdown
-      .replace(/\*\*\s*((?:[^*\n]|\*(?!\*))+?)\s*\*\*/g, "<strong>$1</strong>")
-      .replace(/~~([^~\n]+?)~~/g, "<del>$1</del>");
-    // *italic* は remark-gfm に任せる（単一 * は日本語との混在が少ない）
+      .replace(/\*\*\s+((?:[^*\n]|\*(?!\*))+?)\s+\*\*/g, "**$1**")
+      .replace(/\*\*\s+((?:[^*\n]|\*(?!\*))+?)\*\*/g, "**$1**")
+      .replace(/\*\*((?:[^*\n]|\*(?!\*))+?)\s+\*\*/g, "**$1**");
 
     // Step 4: <br> の直後に改行がない場合は補完
     markdown = markdown.replace(/<br>(?!\n)/g, "<br>\n");
 
     // Step 5: Notionの <table header-row="true"> を標準HTMLテーブルに変換
-    // （Step2で ** はすでに <strong> になっているため、セル内の変換は不要）
+    // テーブルはHTMLブロックとして処理されるため、セル内の ** は rehypeRaw で処理される。
+    // セル内の **bold** → <strong> も行う（HTMLブロック内は remarkプラグインが届かないため）。
+    const boldToStrong = (s: string) =>
+      s.replace(/\*\*\s*((?:[^*\n]|\*(?!\*))+?)\s*\*\*/g, "<strong>$1</strong>");
+
     markdown = markdown.replace(
       /<table[^>]*header-row="true"[^>]*>([\s\S]*?)<\/table>/g,
       (_match, body: string) => {
-        const rows = [...body.matchAll(/<tr>([\s\S]*?)<\/tr>/g)];
+        const processedBody = boldToStrong(body);
+        const rows = [...processedBody.matchAll(/<tr>([\s\S]*?)<\/tr>/g)];
         if (rows.length === 0) return _match;
 
         const headerCells = rows[0][1]
