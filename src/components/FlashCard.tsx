@@ -402,7 +402,7 @@ export function FlashCard({
                       読み込み中...
                     </div>
                   ) : pageContent ? (
-                    <div className="notion-content text-sm text-gray-700 leading-relaxed" style={{ contain: "inline-size", wordBreak: "break-all", overflowWrap: "anywhere" }}>
+                    <div className="notion-content text-sm text-gray-700 leading-relaxed overflow-x-hidden" style={{ wordBreak: "break-all", overflowWrap: "anywhere" }}>
                       <ReactMarkdown
                         remarkPlugins={[remarkGfm]}
                         rehypePlugins={[rehypeRaw, [rehypeSanitize, sanitizeSchema], rehypeForceStrong]}
