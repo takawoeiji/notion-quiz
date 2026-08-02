@@ -142,6 +142,9 @@ interface Props {
   question: QuizQuestion;
   index: number;
   total: number;
+  /** 範囲を絞っているときの全体での位置。全範囲表示中は null */
+  globalIndex?: number | null;
+  globalTotal?: number;
   onNext: () => void;
   onPrev: () => void;
   onUpdateUnderstanding: (
@@ -156,6 +159,8 @@ export function FlashCard({
   question,
   index,
   total,
+  globalIndex = null,
+  globalTotal,
   onNext,
   onPrev,
   onUpdateUnderstanding,
@@ -249,6 +254,11 @@ export function FlashCard({
         </div>
         <span className="text-sm font-medium text-gray-600 whitespace-nowrap">
           {index + 1} / {total}
+          {globalIndex !== null && globalTotal ? (
+            <span className="ml-1.5 text-xs font-normal text-gray-400">
+              （全体 {globalIndex + 1} / {globalTotal}）
+            </span>
+          ) : null}
         </span>
       </div>
 

@@ -5,6 +5,7 @@ import type { QuizQuestion, Filters, Understanding, SchemaOptions } from "@/type
 import { FilterPanel } from "@/components/FilterPanel";
 import { FlashCard } from "@/components/FlashCard";
 import { StatsBar } from "@/components/StatsBar";
+import { RangeSelector, RANGE_SIZE } from "@/components/RangeSelector";
 
 const DEFAULT_FILTERS: Filters = {
   subject: "全て",
@@ -17,6 +18,14 @@ const DEFAULT_SCHEMA: SchemaOptions = {
   understandings: [],
 };
 
+const STORAGE_KEY = "notion-quiz:progress";
+
+interface SavedProgress {
+  filters: Filters;
+  rangeStart: number | null;
+  currentIndex: number;
+}
+
 export default function Home() {
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
   const [schema, setSchema] = useState<SchemaOptions>(DEFAULT_SCHEMA);
@@ -26,6 +35,8 @@ export default function Home() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [shuffle, setShuffle] = useState(false);
   const [shuffleOrder, setShuffleOrder] = useState<number[]>([]);
+  const [rangeStart, setRangeStart] = useState<number | null>(null);
+  const [restored, setRestored] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -75,11 +86,62 @@ export default function Home() {
     return shuffleOrder.map((i) => filtered[i]).filter(Boolean);
   }, [filtered, shuffle, shuffleOrder]);
 
+  // 選択中の学習範囲に絞り込む（rangeStart が null なら全件）
+  const ranged = useMemo(() => {
+    if (rangeStart === null) return orderedFiltered;
+    return orderedFiltered.slice(rangeStart, rangeStart + RANGE_SIZE);
+  }, [orderedFiltered, rangeStart]);
+
+  // 前回の学習位置を復元する（データ取得完了後に一度だけ）
+  useEffect(() => {
+    if (loading || restored) return;
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const saved = JSON.parse(raw) as Partial<SavedProgress>;
+        if (saved.filters) setFilters({ ...DEFAULT_FILTERS, ...saved.filters });
+        if (saved.rangeStart === null || typeof saved.rangeStart === "number") {
+          setRangeStart(saved.rangeStart);
+        }
+        if (typeof saved.currentIndex === "number") setCurrentIndex(saved.currentIndex);
+      }
+    } catch {
+      // 保存データが壊れていても学習開始を妨げない
+    }
+    setRestored(true);
+  }, [loading, restored]);
+
+  // 学習位置を保存する（復元が済むまでは書き込まない）
+  useEffect(() => {
+    if (!restored) return;
+    try {
+      const progress: SavedProgress = { filters, rangeStart, currentIndex };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
+    } catch {
+      // プライベートブラウジング等で保存できなくても続行する
+    }
+  }, [restored, filters, rangeStart, currentIndex]);
+
+  // 問題数が減って範囲・位置が範囲外になった場合に補正する
+  useEffect(() => {
+    if (rangeStart !== null && rangeStart >= orderedFiltered.length) setRangeStart(null);
+  }, [rangeStart, orderedFiltered.length]);
+
+  useEffect(() => {
+    if (ranged.length > 0 && currentIndex >= ranged.length) setCurrentIndex(ranged.length - 1);
+  }, [ranged.length, currentIndex]);
+
   const handleFilterChange = useCallback((newFilters: Filters) => {
     setFilters(newFilters);
     setCurrentIndex(0);
+    setRangeStart(null);
     setShuffle(false);
     setShuffleOrder([]);
+  }, []);
+
+  const handleRangeChange = useCallback((start: number | null) => {
+    setRangeStart(start);
+    setCurrentIndex(0);
   }, []);
 
   const handleShuffle = () => {
@@ -127,7 +189,7 @@ export default function Home() {
     }
   };
 
-  const currentQuestion = orderedFiltered[currentIndex];
+  const currentQuestion = ranged[currentIndex];
 
   if (loading) {
     return (
@@ -196,8 +258,16 @@ export default function Home() {
           understandings={effectiveUnderstandings}
         />
 
+        {/* Range */}
+        <RangeSelector
+          total={orderedFiltered.length}
+          rangeStart={rangeStart}
+          onChange={handleRangeChange}
+          shuffled={shuffle}
+        />
+
         {/* Quiz */}
-        {orderedFiltered.length === 0 ? (
+        {ranged.length === 0 ? (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center">
             <p className="text-gray-400 text-sm">条件に合う問題がありません</p>
           </div>
@@ -206,8 +276,10 @@ export default function Home() {
             key={currentQuestion.id + currentIndex}
             question={currentQuestion}
             index={currentIndex}
-            total={orderedFiltered.length}
-            onNext={() => setCurrentIndex((i) => Math.min(i + 1, orderedFiltered.length - 1))}
+            total={ranged.length}
+            globalIndex={rangeStart === null || shuffle ? null : rangeStart + currentIndex}
+            globalTotal={orderedFiltered.length}
+            onNext={() => setCurrentIndex((i) => Math.min(i + 1, ranged.length - 1))}
             onPrev={() => setCurrentIndex((i) => Math.max(i - 1, 0))}
             onUpdateUnderstanding={handleUpdateUnderstanding}
             understandingOptions={effectiveUnderstandings}
