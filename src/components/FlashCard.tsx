@@ -395,14 +395,14 @@ export function FlashCard({
               </button>
 
               {pageContentOpen && (
-                <div className="mt-3 bg-gray-50 rounded-xl p-4 text-sm text-gray-700">
+                <div className="mt-3 bg-gray-50 rounded-xl p-4 text-sm text-gray-700 overflow-x-auto">
                   {pageContentLoading ? (
                     <div className="flex items-center gap-2 text-gray-400">
                       <div className="w-4 h-4 border-2 border-gray-300 border-t-indigo-500 rounded-full animate-spin" />
                       読み込み中...
                     </div>
                   ) : pageContent ? (
-                    <div className="notion-content text-sm text-gray-700 leading-relaxed overflow-x-hidden" style={{ wordBreak: "break-all", overflowWrap: "anywhere" }}>
+                    <div className="notion-content text-sm text-gray-700 leading-relaxed" style={{ wordBreak: "break-all", overflowWrap: "anywhere" }}>
                       <ReactMarkdown
                         remarkPlugins={[remarkGfm]}
                         rehypePlugins={[rehypeRaw, [rehypeSanitize, sanitizeSchema], rehypeForceStrong]}

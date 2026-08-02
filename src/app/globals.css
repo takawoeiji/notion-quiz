@@ -60,6 +60,15 @@ body {
   width: 100%;
   max-width: 100%;
 }
+/* GFM markdown tables (without wrapper) */
+.notion-content table:not(.notion-table) {
+  display: block;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
 .notion-table {
   border-collapse: collapse;
   font-size: 0.8rem;
