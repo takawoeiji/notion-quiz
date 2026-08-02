@@ -178,9 +178,9 @@ export function FlashCard({
       </div>
 
       {/* Card */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        {/* Card header */}
-        <div className={`px-6 py-4 border-b ${subjectColor}`}>
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
+        {/* Card header - overflow-hidden on header to clip bg color to rounded corners */}
+        <div className={`px-6 py-4 border-b rounded-t-2xl overflow-hidden ${subjectColor}`}>
           <div className="flex items-start justify-between gap-3">
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-1 flex-wrap">

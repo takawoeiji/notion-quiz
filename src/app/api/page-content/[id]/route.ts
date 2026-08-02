@@ -50,13 +50,14 @@ export async function GET(
       .replace(/\\~/g, "~")
       .replace(/\\`/g, "`");
 
-    // Step 2: Notionが `** text **` 形式（スペース入り）で出力する非標準の強調を
-    // remark-gfm が処理できる `**text**` 形式に正規化する。
-    // `\s*` でスペースなし/片側/両側すべてのケースを吸収する。
+    // Step 2: **太字** をHTMLに変換。
+    // remark-gfm では日本語の括弧「」や記号の前後の ** が
+    // CommonMark flanking ルールに引っかかり bold として認識されないため、
+    // 正規表現で全ケース（スペースなし/片側/両側）を変換する。
     markdown = markdown
-      .replace(/\*\*\s*((?:[^*\n]|\*(?!\*))+?)\s*\*\*/g, "**$1**");
-    // 見出し・italic・strikethrough はそのまま remark-parse/remark-gfm に任せる
-    // （Step 3 で <h2> 変換すると HTMLブロック内の markdown が無効になるため削除）
+      .replace(/\*\*\s*((?:[^*\n]|\*(?!\*))+?)\s*\*\*/g, "<strong>$1</strong>")
+      .replace(/~~([^~\n]+?)~~/g, "<del>$1</del>");
+    // *italic* は remark-gfm に任せる（単一 * は日本語との混在が少ない）
 
     // Step 4: <br> の直後に改行がない場合は補完
     markdown = markdown.replace(/<br>(?!\n)/g, "<br>\n");
