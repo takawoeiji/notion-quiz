@@ -8,10 +8,9 @@ import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import { visit } from "unist-util-visit";
 import type { QuizQuestion, Understanding } from "@/types";
 
-// overflow-x:auto コンテナ内では word-break が効かないため、
-// rehype プラグインで各テキスト要素に直接インラインスタイルを注入する。
-// rehypeSanitize の後に実行することで sanitize による style 除去を回避する。
-const WRAP_STYLE = "word-break:break-all;overflow-wrap:anywhere";
+// overflow-x:auto コンテナ内では CSS word-break が効かない。
+// rehypeForceStrong で各テキスト要素に notion-wrap クラスを付与し、
+// globals.css の !important ルールで確実に折り返しを強制する。
 const WRAP_TAGS = new Set(["p", "li", "h1", "h2", "h3", "h4", "h5", "h6", "blockquote", "td", "th"]);
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -24,11 +23,15 @@ function rehypeForceStrong(): (tree: any) => void {
     visit(tree, (node: any) => {
       if (!Array.isArray(node?.children)) return;
 
-      // テキスト折り返しスタイルを直接注入（CSS 競合を回避）
+      // notion-wrap クラスを追加して globals.css の !important ルールで折り返しを強制
       if (node.type === "element" && WRAP_TAGS.has(node.tagName)) {
         node.properties = node.properties ?? {};
-        const existing = node.properties.style ?? "";
-        node.properties.style = existing ? `${existing};${WRAP_STYLE}` : WRAP_STYLE;
+        const existing: string[] = Array.isArray(node.properties.className)
+          ? (node.properties.className as string[])
+          : node.properties.className
+          ? [String(node.properties.className)]
+          : [];
+        node.properties.className = [...existing, "notion-wrap"];
       }
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
