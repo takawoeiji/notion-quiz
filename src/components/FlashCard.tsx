@@ -6,26 +6,31 @@ import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import { visit } from "unist-util-visit";
-import type { Root, Text, Strong, RootContent } from "mdast";
 import type { QuizQuestion, Understanding } from "@/types";
 
-// CommonMark flanking ルールで ** が処理されなかった場合のフォールバック変換。
-// micromark が ** を別々のテキストノードに分割することがあるため、
-// 親ノードの隣接テキスト子を結合してから bold パターンを適用する。
-function remarkForceStrong() {
-  return (tree: Root) => {
+// rehypeForceStrong - hastレベルのプラグイン。
+// remarkRehype 変換後の hast ツリーで **text** テキストノードを
+// <strong> 要素に直接変換する。CommonMark flanking ルールや
+// ブラウザでの rehypeRaw インライン制限を完全に回避できる。
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function rehypeForceStrong(): (tree: any) => void {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (tree: any) => {
     const boldPattern = /\*\*\s*((?:[^*\n]|\*(?!\*))+?)\s*\*\*/g;
 
-    visit(tree, (node) => {
-      if (!("children" in node)) return;
-      const children = (node as { children: RootContent[] }).children;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    visit(tree, (node: any) => {
+      if (!Array.isArray(node?.children)) return;
 
-      const hasStars = children.some(
-        (c) => c.type === "text" && (c as Text).value.includes("*")
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const hasStars = node.children.some(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (c: any) => c.type === "text" && typeof c.value === "string" && c.value.includes("*")
       );
       if (!hasStars) return;
 
-      const newChildren: RootContent[] = [];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const newChildren: any[] = [];
       let buf = "";
 
       const flush = () => {
@@ -37,9 +42,11 @@ function remarkForceStrong() {
           if (m.index > last)
             newChildren.push({ type: "text", value: buf.slice(last, m.index) });
           newChildren.push({
-            type: "strong",
+            type: "element",
+            tagName: "strong",
+            properties: {},
             children: [{ type: "text", value: m[1].trim() }],
-          } as Strong);
+          });
           last = m.index + m[0].length;
         }
         if (last < buf.length)
@@ -47,9 +54,10 @@ function remarkForceStrong() {
         buf = "";
       };
 
-      for (const child of children) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      for (const child of node.children as any[]) {
         if (child.type === "text") {
-          buf += (child as Text).value;
+          buf += String(child.value ?? "");
         } else {
           flush();
           newChildren.push(child);
@@ -57,7 +65,7 @@ function remarkForceStrong() {
       }
       flush();
 
-      (node as { children: RootContent[] }).children = newChildren;
+      node.children = newChildren;
     });
   };
 }
@@ -384,8 +392,8 @@ export function FlashCard({
                   ) : pageContent ? (
                     <div className="notion-content text-sm text-gray-700 leading-relaxed">
                       <ReactMarkdown
-                        remarkPlugins={[remarkGfm, remarkForceStrong]}
-                        rehypePlugins={[rehypeRaw, [rehypeSanitize, sanitizeSchema]]}
+                        remarkPlugins={[remarkGfm]}
+                        rehypePlugins={[rehypeRaw, rehypeForceStrong, [rehypeSanitize, sanitizeSchema]]}
                       >
                         {pageContent}
                       </ReactMarkdown>
