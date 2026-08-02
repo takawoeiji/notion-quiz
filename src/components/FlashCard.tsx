@@ -8,10 +8,12 @@ import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import { visit } from "unist-util-visit";
 import type { QuizQuestion, Understanding } from "@/types";
 
-// rehypeForceStrong - hastレベルのプラグイン。
-// remarkRehype 変換後の hast ツリーで **text** テキストノードを
-// <strong> 要素に直接変換する。CommonMark flanking ルールや
-// ブラウザでの rehypeRaw インライン制限を完全に回避できる。
+// overflow-x:auto コンテナ内では word-break が効かないため、
+// rehype プラグインで各テキスト要素に直接インラインスタイルを注入する。
+// rehypeSanitize の後に実行することで sanitize による style 除去を回避する。
+const WRAP_STYLE = "word-break:break-all;overflow-wrap:anywhere";
+const WRAP_TAGS = new Set(["p", "li", "h1", "h2", "h3", "h4", "h5", "h6", "blockquote", "td", "th"]);
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function rehypeForceStrong(): (tree: any) => void {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -21,6 +23,13 @@ function rehypeForceStrong(): (tree: any) => void {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     visit(tree, (node: any) => {
       if (!Array.isArray(node?.children)) return;
+
+      // テキスト折り返しスタイルを直接注入（CSS 競合を回避）
+      if (node.type === "element" && WRAP_TAGS.has(node.tagName)) {
+        node.properties = node.properties ?? {};
+        const existing = node.properties.style ?? "";
+        node.properties.style = existing ? `${existing};${WRAP_STYLE}` : WRAP_STYLE;
+      }
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const hasStars = node.children.some(
@@ -393,7 +402,7 @@ export function FlashCard({
                     <div className="notion-content text-sm text-gray-700 leading-relaxed" style={{ wordBreak: "break-all", overflowWrap: "anywhere", minWidth: 0, maxWidth: "100%" }}>
                       <ReactMarkdown
                         remarkPlugins={[remarkGfm]}
-                        rehypePlugins={[rehypeRaw, rehypeForceStrong, [rehypeSanitize, sanitizeSchema]]}
+                        rehypePlugins={[rehypeRaw, [rehypeSanitize, sanitizeSchema], rehypeForceStrong]}
                       >
                         {pageContent}
                       </ReactMarkdown>
