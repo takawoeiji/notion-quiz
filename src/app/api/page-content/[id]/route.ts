@@ -58,6 +58,14 @@ export async function GET(
       .replace(/\*\*\s+((?:[^*\n]|\*(?!\*))+?)\*\*/g, "**$1**")
       .replace(/\*\*((?:[^*\n]|\*(?!\*))+?)\s+\*\*/g, "**$1**");
 
+    // Step 3: Notionのタブインデントを変換する
+    // Notionは \t+[リストマーカー] でリスト項目、\t+[テキスト] で継続段落を表現する。
+    // CommonMarkでは行頭タブ＝4スペース＝コードブロックと解釈されるため変換が必要:
+    //   \t+[リストマーカー] → リストマーカー（タブ完全除去 → 通常リスト項目）
+    //   \t+[その他テキスト] → 2スペース（コードブロックを回避しリスト継続段落として機能）
+    markdown = markdown.replace(/^\t+([-*+] |\d+\. )/gm, "$1");
+    markdown = markdown.replace(/^\t+/gm, "  ");
+
     // Step 4: <br> の直後に改行がない場合は補完
     markdown = markdown.replace(/<br>(?!\n)/g, "<br>\n");
 
@@ -83,6 +91,27 @@ export async function GET(
           .map((r) => `<tr>${r[1]}</tr>`)
           .join("");
 
+        return `<div class="notion-table-wrapper"><table class="notion-table">${thead}<tbody>${tbody}</tbody></table></div>`;
+      }
+    );
+
+    // Step 5b: header-row属性のない生の <table> 要素を処理する
+    // Notionは一部のテーブルを <table><tr><td> 形式（header-row属性なし）でエクスポートし、
+    // 各要素の間に空行を挟む。CommonMarkはその空行でHTMLブロックを閉じるため、
+    // テーブル構造が分断される。空行を除去してwrapperで包む。
+    markdown = markdown.replace(
+      /<table(?![^>]*(?:notion-table|header-row))[^>]*>([\s\S]*?)<\/table>/g,
+      (_match, body: string) => {
+        const compactBody = boldToStrong(body.replace(/\n{2,}/g, "\n").trim());
+        const rows = [...compactBody.matchAll(/<tr>([\s\S]*?)<\/tr>/g)];
+        if (rows.length === 0) {
+          return `<div class="notion-table-wrapper"><table class="notion-table">${compactBody}</table></div>`;
+        }
+        const headerCells = rows[0][1]
+          .replace(/<td>/g, "<th>")
+          .replace(/<\/td>/g, "</th>");
+        const thead = `<thead><tr>${headerCells}</tr></thead>`;
+        const tbody = rows.slice(1).map((r) => `<tr>${r[1]}</tr>`).join("");
         return `<div class="notion-table-wrapper"><table class="notion-table">${thead}<tbody>${tbody}</tbody></table></div>`;
       }
     );
