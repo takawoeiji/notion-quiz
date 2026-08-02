@@ -27,7 +27,10 @@ body {
 }
 
 /* Notionページ本文のコンテナ */
-.notion-content { overflow-wrap: anywhere; word-break: break-all; }
+.notion-content,
+.notion-content p,
+.notion-content li,
+.notion-content blockquote { overflow-wrap: anywhere; word-break: break-all; }
 
 /* Notionページ本文の見出しスタイル */
 .notion-content h1 { font-size: 1.1rem; font-weight: 700; margin: 1rem 0 0.5rem; color: #1f2937; }
