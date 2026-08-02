@@ -116,6 +116,21 @@ export async function GET(
       }
     );
 
+    // Step 6: **...** 全体を <strong> に変換（コードブロック保護つき）
+    // CommonMarkのフランキングルールは日本語約物（「：」「「」「」」など）が
+    // ** の直前直後にある場合、太字として認識しないケースがある。
+    // コードブロック・インラインコードを保護した上で全ての **...** を
+    // <strong> タグに変換し、rehypeRaw で確実に太字にする。
+    {
+      const cb6: string[] = [];
+      const withoutCb6 = markdown.replace(/```[\s\S]*?```|`[^`\n]+`/g, (m) => {
+        cb6.push(m);
+        return `\x00CB6${cb6.length - 1}\x00`;
+      });
+      markdown = boldToStrong(withoutCb6)
+        .replace(/\x00CB6(\d+)\x00/g, (_, i) => cb6[Number(i)]);
+    }
+
     return NextResponse.json({
       markdown,
       truncated: response.truncated,
