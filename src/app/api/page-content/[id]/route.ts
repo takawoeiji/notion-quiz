@@ -21,7 +21,8 @@ export async function GET(
       return `\x00CB${codeBlocks.length - 1}\x00`;
     });
     const isQuoteLine = (s: string) => /^>/.test(s.trim());
-    const isListLine  = (s: string) => /^[-*+]|\d+\./.test(s.trim()) && !isQuoteLine(s);
+    // リストマーカーの後に必ずスペースが必要（`**bold**` 行を誤判定しないよう）
+    const isListLine  = (s: string) => /^([-*+] |\d+\. )/.test(s.trim()) && !isQuoteLine(s);
     const sameBlockType = (a: string, b: string) =>
       (isQuoteLine(a) && isQuoteLine(b)) || (isListLine(a) && isListLine(b));
 
@@ -49,21 +50,13 @@ export async function GET(
       .replace(/\\~/g, "~")
       .replace(/\\`/g, "`");
 
-    // Step 2: Notionが出力する `** text **`（スペース入り）を正規化して
-    // remark-gfm がネイティブに処理できる `**text**` 形式にするだけ。
-    // HTML変換はしない（rehype変換時にインラインHTMLが落ちるため）。
+    // Step 2: Notionが `** text **` 形式（スペース入り）で出力する非標準の強調を
+    // remark-gfm が処理できる `**text**` 形式に正規化する。
+    // `\s*` でスペースなし/片側/両側すべてのケースを吸収する。
     markdown = markdown
-      .replace(/\*\*\s+([^*]+?)\s+\*\*/g, "**$1**");
-    // *italic* / ~~strike~~ はそのまま remark-gfm に任せる
-
-    // Step 3: 見出し記号 (#, ##, ###, ####) をHTMLタグに変換し、前後に空行を確保
-    // ポイント: 前後の \n と合わせて \n\n（空行）になるよう \n を付加する
-    // 空行がないと後続のリスト・段落がHTMLブロックに飲み込まれてしまう
-    markdown = markdown
-      .replace(/^#### (.+)$/gm, "\n<h4>$1</h4>\n")
-      .replace(/^### (.+)$/gm,  "\n<h3>$1</h3>\n")
-      .replace(/^## (.+)$/gm,   "\n<h2>$1</h2>\n")
-      .replace(/^# (.+)$/gm,    "\n<h1>$1</h1>\n");
+      .replace(/\*\*\s*((?:[^*\n]|\*(?!\*))+?)\s*\*\*/g, "**$1**");
+    // 見出し・italic・strikethrough はそのまま remark-parse/remark-gfm に任せる
+    // （Step 3 で <h2> 変換すると HTMLブロック内の markdown が無効になるため削除）
 
     // Step 4: <br> の直後に改行がない場合は補完
     markdown = markdown.replace(/<br>(?!\n)/g, "<br>\n");
