@@ -10,25 +10,54 @@ import type { Root, Text, Strong, RootContent } from "mdast";
 import type { QuizQuestion, Understanding } from "@/types";
 
 // CommonMark flanking ルールで ** が処理されなかった場合のフォールバック変換。
-// remark-gfm の後に実行し、テキストノード内に残った **text** を strong ノードに変換する。
+// micromark が ** を別々のテキストノードに分割することがあるため、
+// 親ノードの隣接テキスト子を結合してから bold パターンを適用する。
 function remarkForceStrong() {
   return (tree: Root) => {
-    const pattern = /\*\*\s*((?:[^*\n]|\*(?!\*))+?)\s*\*\*/g;
-    visit(tree, "text", (node: Text, index, parent) => {
-      if (index == null || !parent || !node.value.includes("**")) return;
-      const parts: RootContent[] = [];
-      let last = 0;
-      pattern.lastIndex = 0;
-      let m: RegExpExecArray | null;
-      while ((m = pattern.exec(node.value)) !== null) {
-        if (m.index > last) parts.push({ type: "text", value: node.value.slice(last, m.index) });
-        parts.push({ type: "strong", children: [{ type: "text", value: m[1].trim() }] } as Strong);
-        last = m.index + m[0].length;
+    const boldPattern = /\*\*\s*((?:[^*\n]|\*(?!\*))+?)\s*\*\*/g;
+
+    visit(tree, (node) => {
+      if (!("children" in node)) return;
+      const children = (node as { children: RootContent[] }).children;
+
+      const hasStars = children.some(
+        (c) => c.type === "text" && (c as Text).value.includes("*")
+      );
+      if (!hasStars) return;
+
+      const newChildren: RootContent[] = [];
+      let buf = "";
+
+      const flush = () => {
+        if (!buf) return;
+        boldPattern.lastIndex = 0;
+        let last = 0;
+        let m: RegExpExecArray | null;
+        while ((m = boldPattern.exec(buf)) !== null) {
+          if (m.index > last)
+            newChildren.push({ type: "text", value: buf.slice(last, m.index) });
+          newChildren.push({
+            type: "strong",
+            children: [{ type: "text", value: m[1].trim() }],
+          } as Strong);
+          last = m.index + m[0].length;
+        }
+        if (last < buf.length)
+          newChildren.push({ type: "text", value: buf.slice(last) });
+        buf = "";
+      };
+
+      for (const child of children) {
+        if (child.type === "text") {
+          buf += (child as Text).value;
+        } else {
+          flush();
+          newChildren.push(child);
+        }
       }
-      if (parts.length === 0) return;
-      if (last < node.value.length) parts.push({ type: "text", value: node.value.slice(last) });
-      (parent.children as RootContent[]).splice(index, 1, ...parts);
-      return index + parts.length;
+      flush();
+
+      (node as { children: RootContent[] }).children = newChildren;
     });
   };
 }
@@ -353,20 +382,14 @@ export function FlashCard({
                       読み込み中...
                     </div>
                   ) : pageContent ? (
-                    <>
-                      <details className="mb-2 text-xs text-gray-400">
-                        <summary>🔍 デバッグ（クリックで展開）</summary>
-                        <pre className="bg-gray-100 p-2 mt-1 overflow-x-auto text-xs whitespace-pre-wrap break-all">{pageContent.slice(0, 600)}</pre>
-                      </details>
-                      <div className="notion-content text-sm text-gray-700 leading-relaxed">
-                        <ReactMarkdown
-                          remarkPlugins={[remarkGfm, remarkForceStrong]}
-                          rehypePlugins={[rehypeRaw, [rehypeSanitize, sanitizeSchema]]}
-                        >
-                          {pageContent}
-                        </ReactMarkdown>
-                      </div>
-                    </>
+                    <div className="notion-content text-sm text-gray-700 leading-relaxed">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm, remarkForceStrong]}
+                        rehypePlugins={[rehypeRaw, [rehypeSanitize, sanitizeSchema]]}
+                      >
+                        {pageContent}
+                      </ReactMarkdown>
+                    </div>
                   ) : null}
                 </div>
               )}
