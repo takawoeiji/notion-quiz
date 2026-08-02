@@ -327,6 +327,10 @@ export function FlashCard({
                       読み込み中...
                     </div>
                   ) : pageContent ? (
+                    <details className="mb-2 text-xs text-gray-400">
+                      <summary>🔍 デバッグ: 処理後markdown（クリックで展開）</summary>
+                      <pre className="bg-gray-100 p-2 mt-1 overflow-x-auto text-xs whitespace-pre-wrap break-all">{pageContent.slice(0, 600)}</pre>
+                    </details>
                     <div className="notion-content text-sm text-gray-700 leading-relaxed">
                       <ReactMarkdown
                         remarkPlugins={[remarkGfm]}
