@@ -54,9 +54,13 @@ body {
 }
 
 /* Notionページ本文の表スタイル */
-.notion-content table { overflow-x: auto; display: block; -webkit-overflow-scrolling: touch; }
-.notion-table {
+.notion-table-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   width: 100%;
+  max-width: 100%;
+}
+.notion-table {
   border-collapse: collapse;
   font-size: 0.8rem;
   margin: 0.75rem 0;

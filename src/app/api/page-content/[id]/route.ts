@@ -83,7 +83,7 @@ export async function GET(
           .map((r) => `<tr>${r[1]}</tr>`)
           .join("");
 
-        return `<table class="notion-table">${thead}<tbody>${tbody}</tbody></table>`;
+        return `<div class="notion-table-wrapper"><table class="notion-table">${thead}<tbody>${tbody}</tbody></table></div>`;
       }
     );
 
